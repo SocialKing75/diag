@@ -8,34 +8,13 @@ from pathlib import Path
 from xml.etree import ElementTree
 from xml.sax.saxutils import escape
 
-from windiag_core import build_car_from_template, extract_car_summary
-
-
-FIELD_DEFINITIONS = [
-    ("reference_dossier", "Reference dossier"),
-    ("donneur_ordre", "Donneur d'ordre"),
-    ("ville_dossier", "Ville du dossier"),
-    ("surface", "Surface"),
-    ("date_commande", "Date de commande"),
-    ("date_visite", "Date de visite"),
-    ("date_rapport", "Date de rapport"),
-    ("proprietaire_nom", "Proprietaire"),
-    ("proprietaire_adresse", "Adresse proprietaire"),
-    ("proprietaire_cp", "CP proprietaire"),
-    ("proprietaire_ville", "Ville proprietaire"),
-    ("bien_rue", "Rue du bien"),
-    ("bien_cp", "CP du bien"),
-    ("bien_ville", "Ville du bien"),
-    ("bien_batiment", "Batiment / etage"),
-    ("bien_lot", "Lot"),
-    ("bien_description", "Description du bien"),
-    ("annee_construction", "Annee de construction"),
-    ("type_bien", "Type de bien"),
-    ("categorie_bien", "Categorie"),
-    ("titre_mission", "Titre mission"),
-    ("type_mission", "Code mission"),
-    ("date_mission", "Date mission"),
-]
+from windiag_core import (
+    FIELD_DEFINITIONS,
+    build_car_from_template,
+    create_blank_car_template,
+    extract_car_pieces,
+    extract_car_summary,
+)
 PROMPT_FIELDS = FIELD_DEFINITIONS
 
 NS_MAIN = "http://schemas.openxmlformats.org/spreadsheetml/2006/main"
@@ -45,6 +24,22 @@ NS_PACKAGE_REL = "http://schemas.openxmlformats.org/package/2006/relationships"
 
 def inspect_car(path: Path) -> None:
     print(json.dumps(extract_car_summary(path), ensure_ascii=False, indent=2))
+
+
+def inspect_car_pieces(path: Path) -> None:
+    pieces = extract_car_pieces(path)
+    rows = [
+        {
+            "type": piece.kind,
+            "nom": piece.name,
+            "surface": piece.surface,
+            "exclu": piece.excluded,
+            "carrez": piece.carrez,
+            "code": piece.code,
+        }
+        for piece in pieces
+    ]
+    print(json.dumps(rows, ensure_ascii=False, indent=2))
 
 
 def generate_car(template: Path, data_path: Path, output: Path) -> None:
@@ -184,6 +179,12 @@ def generate_car_from_excel(template: Path, excel: Path, output: Path) -> None:
     print(output)
 
 
+def blank_template(source: Path, output: Path) -> None:
+    output.parent.mkdir(parents=True, exist_ok=True)
+    create_blank_car_template(source, output)
+    print(output)
+
+
 def prompt_value(label: str, default: str) -> str:
     suffix = f" [{default}]" if default else ""
     value = input(f"{label}{suffix}: ").strip()
@@ -209,6 +210,9 @@ def main() -> None:
     inspect_parser = subparsers.add_parser("inspect", help="Afficher les champs principaux d'un .CAR.")
     inspect_parser.add_argument("path", type=Path)
 
+    pieces_parser = subparsers.add_parser("pieces", help="Afficher les pieces/surfaces d'un .CAR enrichi.")
+    pieces_parser.add_argument("path", type=Path)
+
     generate_parser = subparsers.add_parser("generate", help="Generer un .CAR depuis un modele et un JSON.")
     generate_parser.add_argument("--template", type=Path, required=True)
     generate_parser.add_argument("--data", type=Path, required=True)
@@ -227,9 +231,15 @@ def main() -> None:
     excel_generate_parser.add_argument("--excel", type=Path, required=True)
     excel_generate_parser.add_argument("--output", type=Path, required=True)
 
+    blank_parser = subparsers.add_parser("blank-template", help="Creer un template CAR vierge depuis un template complet.")
+    blank_parser.add_argument("--source", type=Path, required=True)
+    blank_parser.add_argument("--output", type=Path, required=True)
+
     args = parser.parse_args()
     if args.command == "inspect":
         inspect_car(args.path)
+    elif args.command == "pieces":
+        inspect_car_pieces(args.path)
     elif args.command == "generate":
         generate_car(args.template, args.data, args.output)
     elif args.command == "prompt":
@@ -238,6 +248,8 @@ def main() -> None:
         create_excel_template(args.template, args.output)
     elif args.command == "generate-from-excel":
         generate_car_from_excel(args.template, args.excel, args.output)
+    elif args.command == "blank-template":
+        blank_template(args.source, args.output)
 
 
 if __name__ == "__main__":

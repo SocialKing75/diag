@@ -64,6 +64,59 @@ CAR_FIELD_MAP = {
     "date_mission": 86,
 }
 
+BLANK_TEMPLATE_KEEP_FIELDS = {"logiciel"}
+
+FIELD_DEFINITIONS = [
+    ("reference_dossier", "Référence dossier"),
+    ("date_dossier", "Date dossier"),
+    ("donneur_ordre", "Donneur d'ordre"),
+    ("ville_dossier", "Ville du dossier"),
+    ("surface", "Surface"),
+    ("reference_commande", "Référence commande"),
+    ("date_commande", "Date de commande"),
+    ("date_visite", "Date de visite"),
+    ("date_rapport", "Date de rapport"),
+    ("observation_dossier", "Observation dossier"),
+    ("usage_bien", "Usage du bien"),
+    ("proprietaire_nom", "Propriétaire"),
+    ("proprietaire_adresse", "Adresse propriétaire"),
+    ("proprietaire_cp", "CP propriétaire"),
+    ("proprietaire_ville", "Ville propriétaire"),
+    ("proprietaire_tel", "Téléphone propriétaire"),
+    ("proprietaire_email", "Email propriétaire"),
+    ("facturation_adresse", "Adresse facturation"),
+    ("facturation_cp", "CP facturation"),
+    ("facturation_ville", "Ville facturation"),
+    ("facturation_tel", "Téléphone facturation"),
+    ("facturation_mobile", "Mobile facturation"),
+    ("facturation_email", "Email facturation"),
+    ("bien_rue", "Rue du bien"),
+    ("bien_cp", "CP du bien"),
+    ("bien_ville", "Ville du bien"),
+    ("bien_batiment", "Bâtiment / étage"),
+    ("bien_lot", "Lot"),
+    ("bien_tel", "Téléphone du bien"),
+    ("bien_description", "Description du bien"),
+    ("annee_construction", "Année de construction"),
+    ("type_bien", "Type de bien"),
+    ("categorie_bien", "Catégorie"),
+    ("etat_bien", "État du bien"),
+    ("etage", "Étage"),
+    ("sous_sol", "Sous-sol"),
+    ("titre_mission", "Titre mission"),
+    ("type_mission", "Code mission"),
+    ("type_mission_secondaire", "Code mission secondaire"),
+    ("date_mission", "Date mission"),
+    ("contact_nom", "Contact / accès"),
+    ("contact_acces", "Détail accès"),
+    ("contact_telephone", "Téléphone contact"),
+    ("honoraires_ttc", "Honoraires TTC"),
+    ("honoraires_tva", "Honoraires TVA"),
+    ("honoraires_ht", "Honoraires HT"),
+    ("champ_64", "Champ 64"),
+    ("champ_65", "Champ 65"),
+]
+
 
 @dataclass
 class Surface:
@@ -87,6 +140,16 @@ class Dossier:
     name: str
     created_at: str
     rooms: list[Room] = field(default_factory=list)
+
+
+@dataclass
+class CarPiece:
+    kind: str
+    name: str
+    surface: str
+    excluded: str
+    carrez: str
+    code: str
 
 
 def normalize_optional(text: str) -> str | None:
@@ -145,6 +208,31 @@ def extract_car_summary(path: str | Path) -> dict[str, str]:
     return summary
 
 
+def extract_car_pieces(path: str | Path) -> list[CarPiece]:
+    fields = read_car_fields(path)
+    pieces: list[CarPiece] = []
+    index = 0
+    while index < len(fields):
+        marker = fields[index]
+        if marker not in {"$Pieces", "$PiecesA"}:
+            index += 1
+            continue
+
+        block = fields[index + 1 : index + 14]
+        pieces.append(
+            CarPiece(
+                kind=marker.removeprefix("$"),
+                name=block[0] if len(block) > 0 else "",
+                surface=block[1] if len(block) > 1 else "",
+                excluded=block[2] if len(block) > 2 else "",
+                carrez=block[3] if len(block) > 3 else "",
+                code=block[8] if len(block) > 8 else "",
+            )
+        )
+        index += 14
+    return pieces
+
+
 def build_car_from_template(template_path: str | Path, data: dict[str, str], output_path: str | Path) -> Path:
     fields = read_car_fields(template_path)
     unknown = sorted(set(data) - set(CAR_FIELD_MAP))
@@ -156,6 +244,31 @@ def build_car_from_template(template_path: str | Path, data: dict[str, str], out
         if index >= len(fields):
             raise ValueError(f"Le modele CAR est trop court pour le champ {key}")
         fields[index] = value
+
+    return write_car_fields(output_path, fields)
+
+
+def create_blank_car_template(source_path: str | Path, output_path: str | Path, clear_pieces: bool = True) -> Path:
+    fields = read_car_fields(source_path)
+
+    for key, index in CAR_FIELD_MAP.items():
+        if key in BLANK_TEMPLATE_KEEP_FIELDS:
+            continue
+        if index < len(fields):
+            fields[index] = ""
+
+    if clear_pieces:
+        index = 0
+        while index < len(fields):
+            if fields[index] not in {"$Pieces", "$PiecesA"}:
+                index += 1
+                continue
+
+            block_start = index + 1
+            for offset in (0, 1, 2, 3):
+                if block_start + offset < len(fields):
+                    fields[block_start + offset] = ""
+            index += 14
 
     return write_car_fields(output_path, fields)
 

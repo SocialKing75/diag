@@ -2,7 +2,7 @@ from flask import Flask, render_template, request, jsonify, send_file
 from pathlib import Path
 import json
 from datetime import datetime
-from windiag_core import build_car_from_template, extract_car_summary, CAR_FIELD_MAP
+from windiag_core import CAR_FIELD_MAP, FIELD_DEFINITIONS, build_car_from_template
 
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50MB max
@@ -23,33 +23,6 @@ DIAGNOSTIC_TYPES = {
     "gaz": {"label": "🔥 Gaz", "color": "#FF6F00"},
     "electricite": {"label": "⚡ Électricité", "color": "#FFC107"},
 }
-
-FIELD_DEFINITIONS = [
-    ("reference_dossier", "Référence dossier"),
-    ("donneur_ordre", "Donneur d'ordre"),
-    ("ville_dossier", "Ville du dossier"),
-    ("surface", "Surface"),
-    ("date_commande", "Date de commande"),
-    ("date_visite", "Date de visite"),
-    ("date_rapport", "Date de rapport"),
-    ("proprietaire_nom", "Propriétaire"),
-    ("proprietaire_adresse", "Adresse propriétaire"),
-    ("proprietaire_cp", "CP propriétaire"),
-    ("proprietaire_ville", "Ville propriétaire"),
-    ("bien_rue", "Rue du bien"),
-    ("bien_cp", "CP du bien"),
-    ("bien_ville", "Ville du bien"),
-    ("bien_batiment", "Bâtiment / étage"),
-    ("bien_lot", "Lot"),
-    ("bien_description", "Description du bien"),
-    ("annee_construction", "Année de construction"),
-    ("type_bien", "Type de bien"),
-    ("categorie_bien", "Catégorie"),
-    ("titre_mission", "Titre mission"),
-    ("type_mission", "Code mission"),
-    ("date_mission", "Date mission"),
-]
-
 
 @app.route("/")
 def index():

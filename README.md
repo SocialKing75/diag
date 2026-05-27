@@ -97,6 +97,28 @@ Les fichiers `.CAR` doivent être dans le dossier `templates/`.
 
 Vous pouvez créer de nouveaux templates avec WinDiagnostics et les ajouter ici.
 
+Un template vierge basé sur la version la plus complète est disponible :
+
+```text
+templates/template-vierge-max.CAR
+```
+
+Il conserve la structure enrichie du fichier `2026-0218.CAR`, avec les champs dossier principaux vidés et les emplacements `$Pieces` / `$PiecesA` conservés.
+
+### Variante `.CAR` enrichie
+
+Certains fichiers `.CAR`, comme `2026-0218.CAR`, contiennent aussi une liste de pièces à la fin du fichier :
+
+- marqueurs `$Pieces`
+- marqueurs `$PiecesA`
+- fin de bloc `$Fin`
+
+Pour les analyser en ligne de commande :
+
+```bash
+python car_tool.py pieces "C:\chemin\2026-0218.CAR"
+```
+
 ## 📧 Support
 
 Pour les problèmes, créer une issue sur GitHub.
