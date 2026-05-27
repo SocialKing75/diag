@@ -1,6 +1,8 @@
 from flask import Flask, render_template, request, jsonify, send_file
 from pathlib import Path
 import json
+import shutil
+import subprocess
 import sys
 import threading
 import webbrowser
@@ -129,7 +131,63 @@ def generer_car():
 
     try:
         build_car_from_template(template_path, filtered_data, output_path)
-        return jsonify({"ok": True, "fichier": f"{nom_sortie}.CAR"})
+
+        # Si un dossier de destination est spécifié, on y copie le fichier
+        save_path = data.get("save_path", "").strip() if data.get("save_path") else ""
+        if save_path:
+            dest_dir = Path(save_path)
+            dest_dir.mkdir(parents=True, exist_ok=True)
+            dest_file = dest_dir / f"{nom_sortie}.CAR"
+            shutil.copy2(output_path, dest_file)
+            return jsonify({
+                "ok": True,
+                "enregistre": True,
+                "fichier": f"{nom_sortie}.CAR",
+                "chemin": str(dest_file)
+            })
+
+        return jsonify({
+            "ok": True,
+            "enregistre": False,
+            "fichier": f"{nom_sortie}.CAR",
+            "chemin": str(output_path)
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/parcourir-dossier", methods=["GET"])
+def parcourir_dossier():
+    """Ouvre le sélecteur de dossier Windows et retourne le chemin choisi."""
+    try:
+        script = (
+            "Add-Type -AssemblyName System.Windows.Forms; "
+            "Add-Type -AssemblyName System.Drawing; "
+            "$owner = New-Object System.Windows.Forms.Form; "
+            "$owner.TopMost = $true; "
+            "$owner.Opacity = 0; "
+            "$owner.ShowInTaskbar = $false; "
+            "$owner.Size = New-Object System.Drawing.Size(1,1); "
+            "$owner.StartPosition = 'CenterScreen'; "
+            "$owner.Show(); [void]$owner.Focus(); "
+            "$d = New-Object System.Windows.Forms.OpenFileDialog; "
+            "$d.Title = 'Choisir le dossier de sauvegarde'; "
+            "$d.InitialDirectory = [Environment]::GetFolderPath('MyDocuments'); "
+            "$d.ValidateNames = $false; "
+            "$d.CheckFileExists = $false; "
+            "$d.CheckPathExists = $true; "
+            "$d.FileName = 'Enregistrer ici'; "
+            "if ($d.ShowDialog($owner) -eq 'OK') { Write-Output ([System.IO.Path]::GetDirectoryName($d.FileName)) } "
+            "$owner.Dispose()"
+        )
+        result = subprocess.run(
+            ["powershell", "-NoProfile", "-Command", script],
+            capture_output=True, text=True, timeout=60
+        )
+        chemin = result.stdout.strip()
+        if chemin:
+            return jsonify({"chemin": chemin})
+        return jsonify({"chemin": None})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -148,5 +206,7 @@ def open_browser():
 
 
 if __name__ == "__main__":
+    from waitress import serve
     threading.Timer(1.5, open_browser).start()
-    app.run(debug=False, host="127.0.0.1", port=5000)
+    print("Serveur démarré sur http://127.0.0.1:5000")
+    serve(app, host="127.0.0.1", port=5000)

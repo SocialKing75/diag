@@ -329,6 +329,8 @@
 
         <div class="content">
             <div class="sidebar">
+                <input type="hidden" id="template" value="template-vierge-max">
+
                 <h3>Type de diagnostic</h3>
                 <div class="diagnostic-buttons" id="diagnosticButtons"></div>
 
@@ -349,6 +351,15 @@
                         <input type="text" id="{{ key }}" data-field="{{ key }}" placeholder="">
                     </div>
                     {% endfor %}
+                </div>
+
+                <div class="form-group" style="margin-top: 24px;">
+                    <label for="savePath">📁 Dossier d'enregistrement du CAR</label>
+                    <div style="display: flex; gap: 6px;">
+                        <input type="text" id="savePath" placeholder="Ex : C:\Users\...\Dossiers CAR" style="flex: 1;">
+                        <button class="btn-secondary" onclick="parcourir()" title="Parcourir" style="padding: 8px 12px; white-space: nowrap;">Parcourir…</button>
+                    </div>
+                    <div id="savePathInfo" style="font-size: 11px; color: #999; margin-top: 4px;">Laisser vide → téléchargement navigateur</div>
                 </div>
 
                 <div class="actions">
@@ -469,12 +480,21 @@
             }
         }
 
+        function parcourir() {
+            fetch("/api/parcourir-dossier")
+                .then(r => r.json())
+                .then(data => {
+                    if (data.chemin) {
+                        document.getElementById("savePath").value = data.chemin;
+                        document.getElementById("savePathInfo").textContent = "✓ Dossier sélectionné";
+                        document.getElementById("savePathInfo").style.color = "#155724";
+                    }
+                })
+                .catch(() => showAlert("Impossible d'ouvrir le sélecteur de dossier", "error"));
+        }
+
         function genererCAR() {
             const template = document.getElementById("template").value;
-            if (!template) {
-                showAlert("Veuillez selectionner un template", "error");
-                return;
-            }
 
             if (!selectedDiagnostic) {
                 showAlert("Veuillez selectionner un type de diagnostic", "error");
@@ -482,6 +502,7 @@
             }
 
             const nom = (document.getElementById("reference_dossier").value || "dossier").replace(/[^a-zA-Z0-9-_]/g, "-");
+            const savePath = document.getElementById("savePath").value.trim();
             const fields = {};
             document.querySelectorAll("[data-field]").forEach(input => {
                 if (input.value) fields[input.id] = input.value;
@@ -492,13 +513,15 @@
             fetch("/api/generer", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ template, diagnostic_type: selectedDiagnostic, nom_sortie: nom, fields })
+                body: JSON.stringify({ template, diagnostic_type: selectedDiagnostic, nom_sortie: nom, fields, save_path: savePath || null })
             })
                 .then(r => r.json())
                 .then(data => {
                     document.getElementById("loading").style.display = "none";
                     if (data.error) {
                         showAlert(`Erreur: ${data.error}`, "error");
+                    } else if (data.enregistre) {
+                        showAlert(`✓ CAR enregistré dans : ${data.chemin}`, "success");
                     } else {
                         showAlert(`CAR genere: ${data.fichier}`, "success");
                         const a = document.createElement("a");
