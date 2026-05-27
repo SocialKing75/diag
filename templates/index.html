@@ -69,13 +69,41 @@
             margin-top: 0;
         }
 
-        .template-select, .save-input {
+        .template-select, .save-input, select {
             width: 100%;
             padding: 8px;
             margin-bottom: 8px;
             border: 1px solid #ddd;
             border-radius: 4px;
             font-size: 13px;
+        }
+
+        .diagnostic-buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-bottom: 15px;
+        }
+
+        .diagnostic-btn {
+            padding: 10px;
+            border: 2px solid transparent;
+            border-radius: 4px;
+            background: white;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 500;
+            transition: all 0.2s;
+            text-align: center;
+        }
+
+        .diagnostic-btn:hover {
+            border-color: #ddd;
+        }
+
+        .diagnostic-btn.active {
+            border-color: #667eea;
+            background: rgba(102, 126, 234, 0.1);
         }
 
         .brouillons-list {
@@ -108,6 +136,12 @@
             font-size: 11px;
             color: #999;
             margin-top: 3px;
+        }
+
+        .brouillon-item.type {
+            font-size: 11px;
+            color: #667eea;
+            margin-top: 2px;
         }
 
         .btn-delete {
@@ -282,6 +316,10 @@
             .form-grid {
                 grid-template-columns: 1fr;
             }
+
+            .diagnostic-buttons {
+                grid-template-columns: 1fr;
+            }
         }
     </style>
 </head>
@@ -301,6 +339,9 @@
                     <option value="{{ template }}">{{ template }}</option>
                     {% endfor %}
                 </select>
+
+                <h3>🔍 Type de diagnostic</h3>
+                <div class="diagnostic-buttons" id="diagnosticButtons"></div>
 
                 <h3>💾 Brouillons</h3>
                 <input type="text" id="saveNom" class="save-input" placeholder="Nom du brouillon">
@@ -335,6 +376,32 @@
     </div>
 
     <script>
+        const diagnosticTypes = {
+            {% for key, info in diagnostic_types.items() %}
+            "{{ key }}": { label: "{{ info.label }}", color: "{{ info.color }}" },
+            {% endfor %}
+        };
+
+        let selectedDiagnostic = null;
+
+        // Initialiser les boutons de diagnostic
+        function initDiagnosticButtons() {
+            const container = document.getElementById("diagnosticButtons");
+            Object.entries(diagnosticTypes).forEach(([key, info]) => {
+                const btn = document.createElement("button");
+                btn.className = "diagnostic-btn";
+                btn.textContent = info.label;
+                btn.onclick = () => selectDiagnostic(key, btn);
+                container.appendChild(btn);
+            });
+        }
+
+        function selectDiagnostic(key, btn) {
+            selectedDiagnostic = key;
+            document.querySelectorAll(".diagnostic-btn").forEach(b => b.classList.remove("active"));
+            btn.classList.add("active");
+        }
+
         // Charger la liste des brouillons
         function loadBrouillons() {
             fetch("/api/brouillons")
@@ -351,6 +418,7 @@
                                 <button class="btn-delete" onclick="deleteBrouillon('${b.nom}'); event.stopPropagation();">✕</button>
                             </div>
                             <div class="brouillon-item date">${new Date(b.date * 1000).toLocaleString('fr-FR')}</div>
+                            <div class="brouillon-item type">${diagnosticTypes[b.type]?.label || b.type}</div>
                         `;
                         list.appendChild(div);
                     });
@@ -362,9 +430,13 @@
                 .then(r => r.json())
                 .then(data => {
                     Object.entries(data).forEach(([key, value]) => {
-                        const input = document.getElementById(key);
-                        if (input && key !== "nom") {
-                            input.value = value || "";
+                        if (key === "diagnostic_type") {
+                            selectDiagnostic(value, document.querySelector(`.diagnostic-btn[data-type="${value}"]`));
+                        } else {
+                            const input = document.getElementById(key);
+                            if (input && key !== "nom") {
+                                input.value = value || "";
+                            }
                         }
                     });
                     document.getElementById("saveNom").value = nom;
@@ -373,12 +445,18 @@
         }
 
         function saveBrouillon() {
+            if (!selectedDiagnostic) {
+                showAlert("Sélectionner un type de diagnostic", "error");
+                return;
+            }
+
             const nom = document.getElementById("saveNom").value || `brouillon-${new Date().toISOString().slice(0, 10)}`;
             const fields = {};
             document.querySelectorAll("[data-field]").forEach(input => {
                 fields[input.id] = input.value;
             });
             fields.nom = nom;
+            fields.diagnostic_type = selectedDiagnostic;
 
             fetch("/api/brouillons", {
                 method: "POST",
@@ -409,6 +487,11 @@
                 return;
             }
 
+            if (!selectedDiagnostic) {
+                showAlert("Veuillez sélectionner un type de diagnostic", "error");
+                return;
+            }
+
             const nom = (document.getElementById("reference_dossier").value || "dossier").replace(/[^a-zA-Z0-9-_]/g, "-");
             const fields = {};
             document.querySelectorAll("[data-field]").forEach(input => {
@@ -420,7 +503,7 @@
             fetch("/api/generer", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ template, nom_sortie: nom, fields })
+                body: JSON.stringify({ template, diagnostic_type: selectedDiagnostic, nom_sortie: nom, fields })
             })
                 .then(r => r.json())
                 .then(data => {
@@ -441,6 +524,8 @@
             if (confirm("Vider tout le formulaire ?")) {
                 document.querySelectorAll("[data-field]").forEach(input => input.value = "");
                 document.getElementById("saveNom").value = "";
+                selectedDiagnostic = null;
+                document.querySelectorAll(".diagnostic-btn").forEach(b => b.classList.remove("active"));
             }
         }
 
@@ -454,6 +539,7 @@
         }
 
         // Au chargement
+        initDiagnosticButtons();
         loadBrouillons();
     </script>
 </body>

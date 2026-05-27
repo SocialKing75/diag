@@ -14,6 +14,16 @@ TEMPLATES_DIR = Path("templates")
 BROUILLONS_DIR.mkdir(exist_ok=True)
 EXPORTS_DIR.mkdir(exist_ok=True)
 
+DIAGNOSTIC_TYPES = {
+    "dpe": {"label": "🏠 DPE (Diagnostic Performance Énergétique)", "color": "#4CAF50"},
+    "termite": {"label": "🐛 Termite", "color": "#FF9800"},
+    "parasite": {"label": "🦟 Parasite", "color": "#F44336"},
+    "amiante": {"label": "⚠️ Amiante", "color": "#2196F3"},
+    "plomb": {"label": "☠️ Plomb", "color": "#9C27B0"},
+    "gaz": {"label": "🔥 Gaz", "color": "#FF6F00"},
+    "electricite": {"label": "⚡ Électricité", "color": "#FFC107"},
+}
+
 FIELD_DEFINITIONS = [
     ("reference_dossier", "Référence dossier"),
     ("donneur_ordre", "Donneur d'ordre"),
@@ -45,7 +55,7 @@ FIELD_DEFINITIONS = [
 def index():
     brouillons = sorted([f.stem for f in BROUILLONS_DIR.glob("*.json")])
     templates = sorted([f.stem for f in TEMPLATES_DIR.glob("*.CAR")])
-    return render_template("index.html", fields=FIELD_DEFINITIONS, brouillons=brouillons, templates=templates)
+    return render_template("index.html", fields=FIELD_DEFINITIONS, brouillons=brouillons, templates=templates, diagnostic_types=DIAGNOSTIC_TYPES)
 
 
 @app.route("/api/brouillons", methods=["GET"])
@@ -56,7 +66,8 @@ def list_brouillons():
         brouillons.append({
             "nom": path.stem,
             "date": path.stat().st_mtime,
-            "titre": data.get("titre_mission", "Sans titre")
+            "titre": data.get("titre_mission", "Sans titre"),
+            "type": data.get("diagnostic_type", "?")
         })
     return jsonify(sorted(brouillons, key=lambda x: x["date"], reverse=True))
 
@@ -92,11 +103,15 @@ def delete_brouillon(nom):
 def generer_car():
     data = request.json
     template_nom = data.get("template")
+    diagnostic_type = data.get("diagnostic_type")
     fields_data = data.get("fields", {})
     nom_sortie = data.get("nom_sortie", f"dossier-{datetime.now().strftime('%Y%m%d-%H%M%S')}")
 
     if not template_nom:
         return jsonify({"error": "Pas de template sélectionné"}), 400
+    
+    if not diagnostic_type:
+        return jsonify({"error": "Type de diagnostic requis"}), 400
 
     template_path = TEMPLATES_DIR / f"{template_nom}.CAR"
     if not template_path.exists():
@@ -104,6 +119,7 @@ def generer_car():
 
     # Filtrer les champs vides et les champs inconnus
     filtered_data = {k: v for k, v in fields_data.items() if v and k in CAR_FIELD_MAP}
+    filtered_data["diagnostic_type"] = diagnostic_type
 
     output_path = EXPORTS_DIR / f"{nom_sortie}.CAR"
 
