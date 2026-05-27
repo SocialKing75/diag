@@ -9,56 +9,50 @@ echo   Generateur CAR - WinDiag
 echo ====================================
 echo.
 
-REM Utiliser le Python Launcher (py) pour forcer Python 3.12+
-set PYTHON=py -3.12
-%PYTHON% --version >nul 2>&1
-if errorlevel 1 (
-  REM Essayer py -3 (derniere version 3.x disponible)
-  set PYTHON=py -3
-  %PYTHON% --version >nul 2>&1
-  if errorlevel 1 (
-    REM Fallback sur python
-    set PYTHON=python
-    %PYTHON% --version >nul 2>&1
-    if errorlevel 1 (
-      echo ERREUR: Python introuvable.
-      echo.
-      echo Installez Python 3.12 depuis https://www.python.org/downloads/
-      echo Cochez "Add Python to PATH" pendant l'installation.
-      pause
-      exit /b 1
-    )
-  )
-)
+REM Trouver Python 3.8+
+set PYTHON=
+py -3.12 --version >nul 2>&1 && set PYTHON=py -3.12
+if "!PYTHON!"=="" py -3.11 --version >nul 2>&1 && set PYTHON=py -3.11
+if "!PYTHON!"=="" py -3.10 --version >nul 2>&1 && set PYTHON=py -3.10
+if "!PYTHON!"=="" py -3.9  --version >nul 2>&1 && set PYTHON=py -3.9
+if "!PYTHON!"=="" py -3.8  --version >nul 2>&1 && set PYTHON=py -3.8
+if "!PYTHON!"=="" py -3    --version >nul 2>&1 && set PYTHON=py -3
 
-REM Verifier que la version est >= 3.8
-%PYTHON% -c "import sys; exit(0 if sys.version_info >= (3, 8) else 1)" >nul 2>&1
-if errorlevel 1 (
-  echo ERREUR: Python trop ancien detecte.
-  %PYTHON% --version
-  echo.
-  echo Desinstallez Python 3.4 via:
-  echo   Panneau de configuration - Programmes - Desinstaller
-  echo Puis relancez ce fichier.
+if "!PYTHON!"=="" (
+  echo ERREUR: Python 3.8+ introuvable.
+  echo Installez Python 3.12 depuis https://www.python.org/downloads/
   pause
   exit /b 1
 )
 
-echo Python utilise:
-%PYTHON% --version
+echo Python utilise: & !PYTHON! --version
 echo.
 
-REM Mettre a jour pip
-%PYTHON% -m pip install --upgrade pip --quiet
+REM Creer l'environnement virtuel si absent
+if not exist "venv\Scripts\activate.bat" (
+  echo Creation de l'environnement virtuel...
+  !PYTHON! -m venv venv
+  if errorlevel 1 (
+    echo ERREUR: Impossible de creer l'environnement virtuel.
+    pause
+    exit /b 1
+  )
+  echo OK.
+  echo.
+)
+
+REM Activer le venv
+call venv\Scripts\activate.bat
+
+REM Mettre a jour pip et setuptools
+python -m pip install --upgrade pip setuptools wheel --quiet
 
 REM Installer Flask si absent
-%PYTHON% -c "import flask" >nul 2>&1
+python -c "import flask" >nul 2>&1
 if errorlevel 1 (
   echo Installation de Flask en cours...
-  echo.
-  %PYTHON% -m pip install Flask Werkzeug
+  pip install Flask Werkzeug
   if errorlevel 1 (
-    echo.
     echo ERREUR lors de l'installation.
     pause
     exit /b 1
@@ -75,6 +69,6 @@ echo.
 ping -n 3 127.0.0.1 >nul
 start "" "http://127.0.0.1:5000"
 
-%PYTHON% app.py
+python app.py
 
 pause
