@@ -1,0 +1,34 @@
+Error processing line 1 of C:\Users\Assistante\Documents\diag\venv\lib\site-packages\distutils-precedence.pth:
+
+  Traceback (most recent call last):
+    File "C:\Python34\lib\site.py", line 167, in addpackage
+      exec(line)
+    File "<string>", line 1, in <module>
+    File "C:\Users\Assistante\Documents\diag\venv\lib\site-packages\_distutils_hack\__init__.py", line 34
+      f"Register concerns at {report_url}"
+      ^
+  SyntaxError: invalid syntax
+
+Remainder of file ignored
+Error processing line 1 of C:\Users\Assistante\Documents\diag\venv\lib\site-packages\distutils-precedence.pth:
+
+  Traceback (most recent call last):
+    File "C:\Python34\lib\site.py", line 167, in addpackage
+      exec(line)
+    File "<string>", line 1, in <module>
+    File "C:\Users\Assistante\Documents\diag\venv\lib\site-packages\_distutils_hack\__init__.py", line 34
+      f"Register concerns at {report_url}"
+      ^
+  SyntaxError: invalid syntax
+
+Remainder of file ignored
+Traceback (most recent call last):
+  File "C:\Python34\lib\runpy.py", line 170, in _run_module_as_main
+    "__main__", mod_spec)
+  File "C:\Python34\lib\runpy.py", line 85, in _run_code
+    exec(code, run_globals)
+  File "C:\Users\Assistante\Documents\diag\venv\Scripts\pip.exe\__main__.py", line 5, in <module>
+  File "C:\Users\Assistante\Documents\diag\venv\lib\site-packages\pip\__init__.py", line 1
+    from __future__ import annotations
+SyntaxError: future feature annotations is not defined
+ERREUR lors de l'installation.
