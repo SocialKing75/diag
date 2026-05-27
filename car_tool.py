@@ -254,3 +254,69 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
+
+def validate_template(path: Path) -> None:
+    """Valider qu'un template CAR a tous les champs requis."""
+    from windiag_core import CAR_FIELD_MAP, extract_car_summary, read_car_fields
+    
+    fields = read_car_fields(path)
+    summary = extract_car_summary(path)
+    
+    print(f"\n📊 VALIDATION DU TEMPLATE: {path.name}")
+    print("="*60)
+    print(f"Nombre de champs: {len(fields)}")
+    print(f"Nombre de champs mappés: {len(summary)}\n")
+    
+    # Vérifier les champs critiques
+    critical_fields = [
+        "logiciel",
+        "donneur_ordre",
+        "titre_mission",
+        "type_mission",
+        "reference_dossier",
+        "date_mission",
+    ]
+    
+    print("CHAMPS CRITIQUES:")
+    for field in critical_fields:
+        value = summary.get(field, "")
+        status = "✅" if value and value.strip() else "⚠️"
+        print(f"  {status} {field:25} : {value[:40] if value else 'VIDE'}")
+    
+    # Vérifier la longueur minimale
+    min_length = max(CAR_FIELD_MAP.values()) + 1
+    print(f"\nLONGUEUR DU FICHIER:")
+    print(f"  Minimum requis: {min_length}")
+    print(f"  Actuel: {len(fields)}")
+    
+    if len(fields) < min_length:
+        print(f"  ❌ ERREUR: Fichier trop court!")
+    else:
+        print(f"  ✅ OK")
+    
+    # Afficher les champs mappés
+    print(f"\nCHAMPS DISPONIBLES ({len(summary)}):")
+    for i, (key, value) in enumerate(sorted(summary.items()), 1):
+        if i > 20:
+            print(f"  ... et {len(summary) - 20} autres")
+            break
+        print(f"  - {key}")
+
+
+# Ajouter la commande validate
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Inspecter ou generer des fichiers Wincarez/WinDiagnostics .CAR.")
+    subparsers = parser.add_subparsers(dest="command", required=True)
+
+    # ... (autres parsers)
+    
+    validate_parser = subparsers.add_parser("validate", help="Valider un template CAR.")
+    validate_parser.add_argument("path", type=Path)
+
+    args = parser.parse_args()
+    
+    # ... (autres commandes)
+    
+    if args.command == "validate":
+        validate_template(args.path)
