@@ -1,0 +1,59 @@
+name: Build Windows EXE
+
+on:
+  push:
+    branches: [ master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Installer dependances
+        run: |
+          python -m pip install --upgrade pip setuptools wheel
+          pip install Flask Werkzeug pyinstaller
+
+      - name: Compiler le .exe
+        run: |
+          pyinstaller app.spec
+
+      - name: Verifier le .exe
+        run: |
+          dir dist\
+          echo "Taille du .exe:"
+          (Get-Item dist\WinDiag-CAR.exe).length / 1MB
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: WinDiag-CAR-Windows
+          path: dist\WinDiag-CAR.exe
+          retention-days: 30
+
+      - name: Creer une Release GitHub
+        uses: softprops/action-gh-release@v2
+        if: github.ref == 'refs/heads/master'
+        with:
+          tag_name: build-${{ github.run_number }}
+          name: "WinDiag CAR - Build ${{ github.run_number }}"
+          body: |
+            Build automatique depuis le commit ${{ github.sha }}
+
+            ## Utilisation
+            1. Telecharger `WinDiag-CAR.exe`
+            2. Placer dans le dossier du projet (avec le dossier `templates/`)
+            3. Double-cliquer sur `WinDiag-CAR.exe`
+            4. Le navigateur s ouvre automatiquement
+          files: dist\WinDiag-CAR.exe
+          draft: false
+          prerelease: false
