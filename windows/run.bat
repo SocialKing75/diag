@@ -9,39 +9,76 @@ echo   Generateur CAR - WinDiag
 echo ====================================
 echo.
 
-REM Trouver Python 3.8+ via le Launcher Windows
+REM Trouver Python 3.8+ - essayer plusieurs commandes
 set PYTHON=
+
+REM Essai 1 : py launcher avec versions specifiques
 for %%V in (3.13 3.12 3.11 3.10 3.9 3.8) do (
   if "!PYTHON!"=="" (
     py -%%V --version >nul 2>&1
-    if not errorlevel 1 (
-      set PYTHON=py -%%V
-      echo Python %%V detecte.
-    )
+    if not errorlevel 1 set PYTHON=py -%%V
   )
 )
 
+REM Essai 2 : py launcher sans version
+if "!PYTHON!"=="" (
+  py --version >nul 2>&1
+  if not errorlevel 1 (
+    py -c "import sys; exit(0 if sys.version_info>=(3,8) else 1)" >nul 2>&1
+    if not errorlevel 1 set PYTHON=py
+  )
+)
+
+REM Essai 3 : python3
+if "!PYTHON!"=="" (
+  python3 --version >nul 2>&1
+  if not errorlevel 1 (
+    python3 -c "import sys; exit(0 if sys.version_info>=(3,8) else 1)" >nul 2>&1
+    if not errorlevel 1 set PYTHON=python3
+  )
+)
+
+REM Essai 4 : python
+if "!PYTHON!"=="" (
+  python --version >nul 2>&1
+  if not errorlevel 1 (
+    python -c "import sys; exit(0 if sys.version_info>=(3,8) else 1)" >nul 2>&1
+    if not errorlevel 1 set PYTHON=python
+  )
+)
+
+REM Aucun Python valide trouve
 if "!PYTHON!"=="" (
   echo ERREUR: Python 3.8+ introuvable.
   echo.
-  echo Installez Python 3.12 depuis https://www.python.org/downloads/
-  echo Cochez "Add Python to PATH" pendant l installation.
+  echo Version detectee:
+  python --version 2>&1
+  py --version 2>&1
+  echo.
+  echo SOLUTION:
+  echo 1. Allez sur https://www.python.org/downloads/
+  echo 2. Telechargez Python 3.12
+  echo 3. Lancez l installateur
+  echo 4. IMPORTANT: cochez "Add Python to PATH"
+  echo 5. Redemarrez l ordinateur
+  echo 6. Relancez ce fichier
   pause
   exit /b 1
 )
 
+echo Python utilise: & !PYTHON! --version
 echo.
 
 REM Supprimer l ancien venv si cree avec Python 3.4
 if exist "venv\Scripts\python.exe" (
-  venv\Scripts\python.exe -c "import sys; exit(0 if sys.version_info >= (3,8) else 1)" >nul 2>&1
+  venv\Scripts\python.exe -c "import sys; exit(0 if sys.version_info>=(3,8) else 1)" >nul 2>&1
   if errorlevel 1 (
-    echo Ancien environnement detecte, suppression...
+    echo Suppression ancien environnement...
     rmdir /s /q venv
   )
 )
 
-REM Creer le venv avec le bon Python
+REM Creer le venv
 if not exist "venv\Scripts\python.exe" (
   echo Creation de l environnement virtuel...
   !PYTHON! -m venv venv
@@ -54,22 +91,20 @@ if not exist "venv\Scripts\python.exe" (
   echo.
 )
 
-REM Utiliser DIRECTEMENT le python.exe du venv - sans passer par le PATH
-set VENV_PYTHON=venv\Scripts\python.exe
-set VENV_PIP=venv\Scripts\python.exe -m pip
+REM Utiliser DIRECTEMENT python.exe du venv
+set VP=venv\Scripts\python.exe
 
-REM Mettre a jour pip et setuptools via chemin direct
-echo Mise a jour de pip...
-%VENV_PYTHON% -m pip install --upgrade pip setuptools wheel --quiet
-echo.
+REM Mettre a jour pip
+echo Mise a jour pip...
+%VP% -m pip install --upgrade pip setuptools wheel --quiet
 
-REM Installer Flask via chemin direct
-%VENV_PYTHON% -c "import flask" >nul 2>&1
+REM Installer Flask
+%VP% -c "import flask" >nul 2>&1
 if errorlevel 1 (
   echo Installation de Flask...
-  %VENV_PYTHON% -m pip install Flask Werkzeug
+  %VP% -m pip install Flask Werkzeug
   if errorlevel 1 (
-    echo ERREUR lors de l installation de Flask.
+    echo ERREUR installation Flask.
     pause
     exit /b 1
   )
@@ -77,15 +112,13 @@ if errorlevel 1 (
   echo.
 )
 
-echo Demarrage de l application...
-echo Le navigateur va s ouvrir dans quelques secondes.
-echo Pour arreter: Ctrl+C dans cette fenetre.
+echo Demarrage...
+echo Navigateur: http://127.0.0.1:5000
+echo Ctrl+C pour arreter.
 echo.
 
 ping -n 3 127.0.0.1 >nul
 start "" "http://127.0.0.1:5000"
-
-REM Lancer l app avec le python du venv directement
-%VENV_PYTHON% app.py
+%VP% app.py
 
 pause
