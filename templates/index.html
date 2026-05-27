@@ -326,13 +326,13 @@
 <body>
     <div class="container">
         <header>
-            <h1>🚀 Générateur CAR</h1>
-            <p>Remplissez le formulaire et générez votre fichier CAR</p>
+            <h1>WinDiag - Generateur CAR</h1>
+            <p>Remplissez le formulaire et generez votre fichier CAR</p>
         </header>
 
         <div class="content">
             <div class="sidebar">
-                <h3>📄 Template</h3>
+                <h3>Template</h3>
                 <select id="template" class="template-select">
                     <option value="">-- Choisir un template --</option>
                     {% for template in templates %}
@@ -340,10 +340,10 @@
                     {% endfor %}
                 </select>
 
-                <h3>🔍 Type de diagnostic</h3>
+                <h3>Type de diagnostic</h3>
                 <div class="diagnostic-buttons" id="diagnosticButtons"></div>
 
-                <h3>💾 Brouillons</h3>
+                <h3>Brouillons</h3>
                 <input type="text" id="saveNom" class="save-input" placeholder="Nom du brouillon">
                 <button class="btn-primary" onclick="saveBrouillon()" style="width: 100%; margin-bottom: 10px;">Sauvegarder</button>
 
@@ -363,13 +363,13 @@
                 </div>
 
                 <div class="actions">
-                    <button class="btn-primary" onclick="genererCAR()">✅ Générer le CAR</button>
-                    <button class="btn-secondary" onclick="clearForm()">🔄 Vider le formulaire</button>
+                    <button class="btn-primary" onclick="genererCAR()">Generer le CAR</button>
+                    <button class="btn-secondary" onclick="clearForm()">Vider le formulaire</button>
                 </div>
 
                 <div class="loading" id="loading">
                     <div class="spinner"></div>
-                    <p style="margin-top: 10px;">Génération en cours...</p>
+                    <p style="margin-top: 10px;">Generation en cours...</p>
                 </div>
             </div>
         </div>
@@ -415,7 +415,7 @@
                         div.innerHTML = `
                             <div class="brouillon-item titre" onclick="loadBrouillon('${b.nom}')" style="cursor: pointer;">
                                 ${b.titre || b.nom}
-                                <button class="btn-delete" onclick="deleteBrouillon('${b.nom}'); event.stopPropagation();">✕</button>
+                                <button class="btn-delete" onclick="deleteBrouillon('${b.nom}'); event.stopPropagation();">X</button>
                             </div>
                             <div class="brouillon-item date">${new Date(b.date * 1000).toLocaleString('fr-FR')}</div>
                             <div class="brouillon-item type">${diagnosticTypes[b.type]?.label || b.type}</div>
@@ -440,13 +440,13 @@
                         }
                     });
                     document.getElementById("saveNom").value = nom;
-                    showAlert(`Brouillon "${nom}" chargé`, "info");
+                    showAlert(`Brouillon "${nom}" charge`, "info");
                 });
         }
 
         function saveBrouillon() {
             if (!selectedDiagnostic) {
-                showAlert("Sélectionner un type de diagnostic", "error");
+                showAlert("Selectionner un type de diagnostic", "error");
                 return;
             }
 
@@ -465,7 +465,7 @@
             })
                 .then(r => r.json())
                 .then(() => {
-                    showAlert(`Brouillon "${nom}" sauvegardé`, "success");
+                    showAlert(`Brouillon "${nom}" sauvegarde`, "success");
                     loadBrouillons();
                 });
         }
@@ -474,7 +474,7 @@
             if (confirm(`Supprimer le brouillon "${nom}" ?`)) {
                 fetch(`/api/brouillons/${nom}`, { method: "DELETE" })
                     .then(() => {
-                        showAlert("Brouillon supprimé", "success");
+                        showAlert("Brouillon supprime", "success");
                         loadBrouillons();
                     });
             }
@@ -483,12 +483,12 @@
         function genererCAR() {
             const template = document.getElementById("template").value;
             if (!template) {
-                showAlert("Veuillez sélectionner un template", "error");
+                showAlert("Veuillez selectionner un template", "error");
                 return;
             }
 
             if (!selectedDiagnostic) {
-                showAlert("Veuillez sélectionner un type de diagnostic", "error");
+                showAlert("Veuillez selectionner un type de diagnostic", "error");
                 return;
             }
 
@@ -511,7 +511,7 @@
                     if (data.error) {
                         showAlert(`Erreur: ${data.error}`, "error");
                     } else {
-                        showAlert(`CAR généré: ${data.fichier}`, "success");
+                        showAlert(`CAR genere: ${data.fichier}`, "success");
                         const a = document.createElement("a");
                         a.href = `/api/telecharger/${data.fichier}`;
                         a.download = data.fichier;

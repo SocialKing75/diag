@@ -2,7 +2,7 @@ from flask import Flask, render_template, request, jsonify, send_file
 from pathlib import Path
 import json
 from datetime import datetime
-from windiag_core import CAR_FIELD_MAP, FIELD_DEFINITIONS, build_car_from_template
+from windiag_core import build_car_from_template, extract_car_summary, CAR_FIELD_MAP
 
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50MB max
@@ -15,14 +15,41 @@ BROUILLONS_DIR.mkdir(exist_ok=True)
 EXPORTS_DIR.mkdir(exist_ok=True)
 
 DIAGNOSTIC_TYPES = {
-    "dpe": {"label": "🏠 DPE (Diagnostic Performance Énergétique)", "color": "#4CAF50"},
-    "termite": {"label": "🐛 Termite", "color": "#FF9800"},
-    "parasite": {"label": "🦟 Parasite", "color": "#F44336"},
-    "amiante": {"label": "⚠️ Amiante", "color": "#2196F3"},
-    "plomb": {"label": "☠️ Plomb", "color": "#9C27B0"},
-    "gaz": {"label": "🔥 Gaz", "color": "#FF6F00"},
-    "electricite": {"label": "⚡ Électricité", "color": "#FFC107"},
+    "dpe": {"label": "DPE (Diagnostic Performance Energetique)", "color": "#4CAF50"},
+    "termite": {"label": "Termite", "color": "#FF9800"},
+    "parasite": {"label": "Parasite", "color": "#F44336"},
+    "amiante": {"label": "Amiante", "color": "#2196F3"},
+    "plomb": {"label": "Plomb", "color": "#9C27B0"},
+    "gaz": {"label": "Gaz", "color": "#FF6F00"},
+    "electricite": {"label": "Electricite", "color": "#FFC107"},
 }
+
+FIELD_DEFINITIONS = [
+    ("reference_dossier", "Reference dossier"),
+    ("donneur_ordre", "Donneur d'ordre"),
+    ("ville_dossier", "Ville du dossier"),
+    ("surface", "Surface"),
+    ("date_commande", "Date de commande"),
+    ("date_visite", "Date de visite"),
+    ("date_rapport", "Date de rapport"),
+    ("proprietaire_nom", "Proprietaire"),
+    ("proprietaire_adresse", "Adresse proprietaire"),
+    ("proprietaire_cp", "CP proprietaire"),
+    ("proprietaire_ville", "Ville proprietaire"),
+    ("bien_rue", "Rue du bien"),
+    ("bien_cp", "CP du bien"),
+    ("bien_ville", "Ville du bien"),
+    ("bien_batiment", "Batiment / etage"),
+    ("bien_lot", "Lot"),
+    ("bien_description", "Description du bien"),
+    ("annee_construction", "Annee de construction"),
+    ("type_bien", "Type de bien"),
+    ("categorie_bien", "Categorie"),
+    ("titre_mission", "Titre mission"),
+    ("type_mission", "Code mission"),
+    ("date_mission", "Date mission"),
+]
+
 
 @app.route("/")
 def index():
@@ -49,7 +76,7 @@ def list_brouillons():
 def load_brouillon(nom):
     path = BROUILLONS_DIR / f"{nom}.json"
     if not path.exists():
-        return jsonify({"error": "Brouillon non trouvé"}), 404
+        return jsonify({"error": "Brouillon non trouve"}), 404
     return jsonify(json.loads(path.read_text(encoding="utf-8")))
 
 
@@ -81,18 +108,18 @@ def generer_car():
     nom_sortie = data.get("nom_sortie", f"dossier-{datetime.now().strftime('%Y%m%d-%H%M%S')}")
 
     if not template_nom:
-        return jsonify({"error": "Pas de template sélectionné"}), 400
+        return jsonify({"error": "Pas de template selectionne"}), 400
     
     if not diagnostic_type:
         return jsonify({"error": "Type de diagnostic requis"}), 400
 
     template_path = TEMPLATES_DIR / f"{template_nom}.CAR"
     if not template_path.exists():
-        return jsonify({"error": f"Template {template_nom} non trouvé"}), 404
+        return jsonify({"error": f"Template {template_nom} non trouve"}), 404
 
     # Filtrer les champs vides et les champs inconnus
     filtered_data = {k: v for k, v in fields_data.items() if v and k in CAR_FIELD_MAP}
-    filtered_data["diagnostic_type"] = diagnostic_type
+    # Diagnostic type est juste pour la saisie, pas pour le CAR
 
     output_path = EXPORTS_DIR / f"{nom_sortie}.CAR"
 
@@ -111,7 +138,7 @@ def generer_car():
 def telecharger_car(nom):
     path = EXPORTS_DIR / f"{nom}"
     if not path.exists():
-        return jsonify({"error": "Fichier non trouvé"}), 404
+        return jsonify({"error": "Fichier non trouve"}), 404
     return send_file(path, as_attachment=True, download_name=nom)
 
 
