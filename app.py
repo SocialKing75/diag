@@ -103,13 +103,18 @@ def delete_brouillon(nom):
 def generer_car():
     data = request.json
     template_nom = data.get("template")
+    
+    # Si pas de template, utiliser le premier disponible
+    if not template_nom:
+        templates = sorted([f.stem for f in TEMPLATES_DIR.glob("*.CAR")])
+        if templates:
+            template_nom = templates[0]
+    
     diagnostic_type = data.get("diagnostic_type")
     fields_data = data.get("fields", {})
     nom_sortie = data.get("nom_sortie", f"dossier-{datetime.now().strftime('%Y%m%d-%H%M%S')}")
 
-    if not template_nom:
-        return jsonify({"error": "Pas de template selectionne"}), 400
-    
+
     if not diagnostic_type:
         return jsonify({"error": "Type de diagnostic requis"}), 400
 
