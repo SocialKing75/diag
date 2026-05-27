@@ -1,6 +1,6 @@
-# WinDiag Telegram Bot
+# WinDiag - Outils de gestion des fichiers CAR
 
-Bot Telegram pour saisir les pieces sur le terrain et generer un recap pret a coller dans WinDiag, avec un fichier JSON archive par dossier.
+Outils pour inspecter et générer des fichiers `.CAR` Wincarez/WinDiagnostics depuis des templates Excel ou JSON.
 
 ## Installation
 
@@ -8,40 +8,7 @@ Bot Telegram pour saisir les pieces sur le terrain et generer un recap pret a co
 python3 -m venv .venv
 . .venv/bin/activate
 pip install -r requirements.txt
-cp .env.example .env
 ```
-
-Dans `.env`, renseigner :
-
-- `TELEGRAM_BOT_TOKEN` : token donne par BotFather.
-- `TELEGRAM_ALLOWED_CHAT_IDS` : optionnel, liste d'IDs Telegram separes par des virgules.
-- `OUTPUT_DIR` : optionnel, dossier de sortie des JSON.
-
-## Lancement
-
-```bash
-. .venv/bin/activate
-python bot.py
-```
-
-## Flux inspecteur
-
-1. `/start`
-2. Saisie du nom de dossier/logement.
-3. Pour chaque piece :
-   - nom de piece
-   - sol : surface + materiau optionnel
-   - murs : surface + materiau optionnel
-   - plafond : surface + materiau optionnel
-   - hauteur sous plafond optionnelle
-   - orientation optionnelle
-   - menuiseries optionnelles
-4. Boutons `Ajouter une piece`, `Terminer`, `Annuler`.
-
-Le bot envoie :
-
-- un recap texte lisible et pret a coller ;
-- un fichier `.json` exploitable par une future auto-saisie Windows.
 
 ## Workflow `.CAR`
 
@@ -143,8 +110,3 @@ Exemple de `dossier-car.json` :
 }
 ```
 
-## Commandes
-
-- `/start` : nouveau dossier
-- `/cancel` : annuler la saisie en cours
-- `/help` : aide rapide
