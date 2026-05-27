@@ -1,112 +1,102 @@
-# WinDiag - Outils de gestion des fichiers CAR
+# 🚀 WinDiag - Générateur CAR
 
-Outils pour inspecter et générer des fichiers `.CAR` Wincarez/WinDiagnostics depuis des templates Excel ou JSON.
+Application web simple pour générer des fichiers `.CAR` Wincarez/WinDiagnostics sans connaissance technique.
 
-## Installation
+## ⚡ Démarrage rapide
+
+### Windows
+
+**Double-cliquer sur :** `windows\run.bat`
+
+C'est tout ! Le navigateur s'ouvre automatiquement.
+
+### Mac / Linux
 
 ```bash
-python3 -m venv .venv
-. .venv/bin/activate
+./run.sh
+```
+
+## 🎯 Utilisation
+
+1. **Sélectionner un template** → Choisir le fichier modèle `.CAR`
+2. **Remplir les champs** → Compléter les informations du dossier
+3. **Sauvegarder un brouillon** (optionnel) → Pour continuer plus tard
+4. **Générer le CAR** → Créer le fichier final
+5. **Télécharger** → Le fichier est prêt à utiliser dans WinDiagnostics
+
+## 💾 Brouillons
+
+Les brouillons sont automatiquement sauvegardés en local sur l'ordinateur :
+- **Sauvegarder** : bouton "Sauvegarder" dans la barre latérale
+- **Charger** : cliquer sur un brouillon existant
+- **Supprimer** : bouton "✕" sur chaque brouillon
+
+Les brouillons ne sont pas supprimés lors de la génération du CAR.
+
+## 📁 Structure
+
+```
+├── app.py              ← Application principal
+├── run.sh              ← Lancer sur Mac/Linux
+├── windows/
+│   └── run.bat         ← Lancer sur Windows
+├── templates/          ← Fichiers modèles .CAR
+│   └── 2025-1285-32.CAR
+├── exports/            ← Fichiers .CAR générés
+├── brouillons/         ← Brouillons sauvegardés (créé auto)
+└── requirements.txt    ← Dépendances Python
+```
+
+## ⚙️ Installation (une seule fois)
+
+Si vous double-cliquez sur `run.bat` et ça ne fonctionne pas :
+
+1. **Installer Python**
+   - Télécharger depuis https://www.python.org
+   - Pendant l'installation, cocher "Add Python to PATH"
+
+2. **Les dépendances s'installent automatiquement** au premier lancement
+
+## 🔧 Développement
+
+```bash
+# Installation dépendances
 pip install -r requirements.txt
+
+# Lancer l'app
+python app.py
 ```
 
-## Workflow `.CAR`
+L'app est accessible à `http://127.0.0.1:5000`
 
-Les fichiers `.CAR` Wincarez/WinDiagnostics sont des fichiers texte encodes en Windows-1252 avec retours ligne Windows.
-Le projet sait maintenant lire les champs principaux, puis generer un nouveau `.CAR` depuis un modele existant.
+## 📦 Compilation en .EXE (optionnel)
 
-### Utilisation simple sur Windows
-
-Pour un utilisateur qui ne connait pas Python, utiliser les fichiers dans le dossier `windows` :
-
-- `windows\Assistant-CAR-complet.bat` : workflow complet en une seule fois
-- `windows\WinDiag-CAR-menu.bat` : menu principal
-- `windows\01-creer-excel-saisie.bat` : creer l'Excel de saisie
-- `windows\02-generer-car-depuis-excel.bat` : creer le `.CAR` depuis l'Excel rempli
-
-Le plus simple est de double-cliquer sur `Assistant-CAR-complet.bat`.
-
-Workflow utilisateur :
-
-1. Double-cliquer sur `windows\Assistant-CAR-complet.bat`.
-2. Glisser/deposer le fichier modele `.CAR` dans la fenetre.
-3. L'Excel s'ouvre automatiquement.
-4. Modifier uniquement la colonne `Valeur`.
-5. Enregistrer et fermer Excel.
-6. Revenir dans la fenetre et appuyer sur une touche.
-7. Le `.CAR` final est genere.
-8. Importer le `.CAR` dans WinDiagnostics.
-
-Pour une version encore plus simple, on pourra ensuite compiler l'outil en `.exe` Windows avec PyInstaller afin que Python n'ait pas besoin d'etre installe sur les postes utilisateurs.
-
-Inspecter un fichier :
+Pour les utilisateurs sans Python :
 
 ```bash
-python3 car_tool.py inspect /home/name/Téléchargements/2025-1285-32.CAR
+pip install pyinstaller
+pyinstaller --onefile --icon=icon.ico app.py
 ```
 
-Generer un nouveau fichier depuis un modele :
+Le fichier `app.exe` peut être distribué seul.
 
-```bash
-python3 car_tool.py generate \
-  --template /home/name/Téléchargements/2025-1285-32.CAR \
-  --data dossier-car.json \
-  --output exports/nouveau-dossier.CAR
-```
+## 🐛 Dépannage
 
-Saisir les informations au clavier et creer directement le `.CAR` :
+**"Python n'est pas trouvé"**
+→ Installer Python depuis https://www.python.org (cocher "Add to PATH")
 
-```bash
-python3 car_tool.py prompt \
-  --template /home/name/Téléchargements/2025-1285-32.CAR \
-  --output exports/test-saisie.CAR
-```
+**"Erreur: Port 5000 déjà utilisé"**
+→ Modifier dans `app.py` ligne 63 : `port=5001` (ou autre)
 
-Creer un Excel de saisie :
+**"Template non trouvé"**
+→ Placer les fichiers `.CAR` dans le dossier `templates/`
 
-```bash
-python3 car_tool.py excel-template \
-  --template /home/name/Téléchargements/2025-1285-32.CAR \
-  --output exports/saisie-car.xlsx
-```
+## 📝 Format des templates
 
-Dans Excel ou LibreOffice, modifier uniquement la colonne `Valeur`, puis generer le `.CAR` :
+Les fichiers `.CAR` doivent être dans le dossier `templates/`.
 
-```bash
-python3 car_tool.py generate-from-excel \
-  --template /home/name/Téléchargements/2025-1285-32.CAR \
-  --excel exports/saisie-car.xlsx \
-  --output exports/depuis-excel.CAR
-```
+Vous pouvez créer de nouveaux templates avec WinDiagnostics et les ajouter ici.
 
-Exemple de `dossier-car.json` :
+## 📧 Support
 
-```json
-{
-  "donneur_ordre": "GENERALI VIE C/o Generali Real Estate",
-  "ville_dossier": "PARIS",
-  "surface": "126.60",
-  "reference_commande": "",
-  "date_commande": "30/01/2026",
-  "date_visite": "30/01/2026",
-  "date_rapport": "30/01/2026",
-  "proprietaire_nom": "GENERALI REAL ESTATE",
-  "proprietaire_adresse": "PILLET-WILL",
-  "proprietaire_cp": "75009",
-  "proprietaire_ville": "PARIS 9",
-  "bien_rue": "INGRES",
-  "bien_cp": "75016",
-  "bien_ville": "PARIS",
-  "bien_batiment": "1er Etage",
-  "bien_lot": "32 + CAVE LOT N° 6",
-  "bien_description": "4 Pièces",
-  "annee_construction": "Avant 1948",
-  "type_bien": "Habitation (parties privatives d'immeuble collectif d'habitation)",
-  "type_mission": "CP",
-  "champ_64": "4",
-  "categorie_bien": "Appartement",
-  "titre_mission": "DDT VENTE SANS CARREZ / LOT N°32",
-  "date_mission": "30/01/2026"
-}
-```
-
+Pour les problèmes, créer une issue sur GitHub.
