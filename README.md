@@ -24,6 +24,20 @@ C'est tout ! Le navigateur s'ouvre automatiquement.
 4. **Générer le CAR** → Créer le fichier final
 5. **Télécharger** → Le fichier est prêt à utiliser dans WinDiagnostics
 
+## 🖼️ OCR image vers texte
+
+Pour extraire le texte d'une image sur Windows :
+
+```text
+windows\OCR-image-vers-texte.bat
+```
+
+L'utilisateur double-clique sur ce fichier, glisse/depose l'image dans la fenetre, puis l'outil cree un fichier `.txt`.
+
+Ce module utilise **Tesseract OCR**. S'il n'est pas installe, le lanceur affiche le lien d'installation.
+
+Important : Tesseract fonctionne bien avec du texte imprime ou une photo tres nette. Pour des notes manuscrites de terrain, le resultat peut etre approximatif.
+
 ## 💾 Brouillons
 
 Les brouillons sont automatiquement sauvegardés en local sur l'ordinateur :

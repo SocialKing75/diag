@@ -7,3 +7,6 @@ exports/
 venv/
 brouillons/
 exports/
+build/
+dist/
+*.spec
