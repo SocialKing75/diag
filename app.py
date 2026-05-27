@@ -1,61 +1,71 @@
 from flask import Flask, render_template, request, jsonify, send_file
 from pathlib import Path
 import json
+import sys
+import threading
+import webbrowser
 from datetime import datetime
-from windiag_core import build_car_from_template, extract_car_summary, CAR_FIELD_MAP
+from windiag_core import build_car_from_template, CAR_FIELD_MAP
 
-app = Flask(__name__)
-app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50MB max
+# Support PyInstaller
+if getattr(sys, 'frozen', False):
+    BASE_DIR = Path(sys.executable).parent
+    TEMPLATE_FOLDER = Path(sys._MEIPASS) / 'templates'
+else:
+    BASE_DIR = Path(__file__).parent
+    TEMPLATE_FOLDER = BASE_DIR / 'templates'
 
-BROUILLONS_DIR = Path("brouillons")
-EXPORTS_DIR = Path("exports")
-TEMPLATES_DIR = Path("templates")
+app = Flask(__name__, template_folder=str(TEMPLATE_FOLDER))
+app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024
+
+BROUILLONS_DIR = BASE_DIR / "brouillons"
+EXPORTS_DIR   = BASE_DIR / "exports"
+TEMPLATES_DIR = BASE_DIR / "templates"
 
 BROUILLONS_DIR.mkdir(exist_ok=True)
 EXPORTS_DIR.mkdir(exist_ok=True)
 
 DIAGNOSTIC_TYPES = {
-    "dpe": {"label": "DPE (Diagnostic Performance Energetique)", "color": "#4CAF50"},
-    "termite": {"label": "Termite", "color": "#FF9800"},
-    "parasite": {"label": "Parasite", "color": "#F44336"},
-    "amiante": {"label": "Amiante", "color": "#2196F3"},
-    "plomb": {"label": "Plomb", "color": "#9C27B0"},
-    "gaz": {"label": "Gaz", "color": "#FF6F00"},
-    "electricite": {"label": "Electricite", "color": "#FFC107"},
+    "dpe":        {"label": "DPE (Diagnostic Performance Energetique)", "color": "#4CAF50"},
+    "termite":    {"label": "Termite",      "color": "#FF9800"},
+    "parasite":   {"label": "Parasite",     "color": "#F44336"},
+    "amiante":    {"label": "Amiante",      "color": "#2196F3"},
+    "plomb":      {"label": "Plomb",        "color": "#9C27B0"},
+    "gaz":        {"label": "Gaz",          "color": "#FF6F00"},
+    "electricite":{"label": "Electricite",  "color": "#FFC107"},
 }
 
 FIELD_DEFINITIONS = [
-    ("reference_dossier", "Reference dossier"),
-    ("donneur_ordre", "Donneur d'ordre"),
-    ("ville_dossier", "Ville du dossier"),
-    ("surface", "Surface"),
-    ("date_commande", "Date de commande"),
-    ("date_visite", "Date de visite"),
-    ("date_rapport", "Date de rapport"),
-    ("proprietaire_nom", "Proprietaire"),
-    ("proprietaire_adresse", "Adresse proprietaire"),
-    ("proprietaire_cp", "CP proprietaire"),
+    ("reference_dossier",  "Reference dossier"),
+    ("donneur_ordre",      "Donneur d'ordre"),
+    ("ville_dossier",      "Ville du dossier"),
+    ("surface",            "Surface"),
+    ("date_commande",      "Date de commande"),
+    ("date_visite",        "Date de visite"),
+    ("date_rapport",       "Date de rapport"),
+    ("proprietaire_nom",   "Proprietaire"),
+    ("proprietaire_adresse","Adresse proprietaire"),
+    ("proprietaire_cp",    "CP proprietaire"),
     ("proprietaire_ville", "Ville proprietaire"),
-    ("bien_rue", "Rue du bien"),
-    ("bien_cp", "CP du bien"),
-    ("bien_ville", "Ville du bien"),
-    ("bien_batiment", "Batiment / etage"),
-    ("bien_lot", "Lot"),
-    ("bien_description", "Description du bien"),
+    ("bien_rue",           "Rue du bien"),
+    ("bien_cp",            "CP du bien"),
+    ("bien_ville",         "Ville du bien"),
+    ("bien_batiment",      "Batiment / etage"),
+    ("bien_lot",           "Lot"),
+    ("bien_description",   "Description du bien"),
     ("annee_construction", "Annee de construction"),
-    ("type_bien", "Type de bien"),
-    ("categorie_bien", "Categorie"),
-    ("titre_mission", "Titre mission"),
-    ("type_mission", "Code mission"),
-    ("date_mission", "Date mission"),
+    ("type_bien",          "Type de bien"),
+    ("categorie_bien",     "Categorie"),
+    ("titre_mission",      "Titre mission"),
+    ("type_mission",       "Code mission"),
+    ("date_mission",       "Date mission"),
 ]
 
 
 @app.route("/")
 def index():
-    brouillons = sorted([f.stem for f in BROUILLONS_DIR.glob("*.json")])
     templates = sorted([f.stem for f in TEMPLATES_DIR.glob("*.CAR")])
-    return render_template("index.html", fields=FIELD_DEFINITIONS, brouillons=brouillons, templates=templates, diagnostic_types=DIAGNOSTIC_TYPES)
+    return render_template("index.html", fields=FIELD_DEFINITIONS, templates=templates, diagnostic_types=DIAGNOSTIC_TYPES)
 
 
 @app.route("/api/brouillons", methods=["GET"])
@@ -63,12 +73,9 @@ def list_brouillons():
     brouillons = []
     for path in sorted(BROUILLONS_DIR.glob("*.json")):
         data = json.loads(path.read_text(encoding="utf-8"))
-        brouillons.append({
-            "nom": path.stem,
-            "date": path.stat().st_mtime,
-            "titre": data.get("titre_mission", "Sans titre"),
-            "type": data.get("diagnostic_type", "?")
-        })
+        brouillons.append({"nom": path.stem, "date": path.stat().st_mtime,
+                           "titre": data.get("titre_mission", "Sans titre"),
+                           "type": data.get("diagnostic_type", "?")})
     return jsonify(sorted(brouillons, key=lambda x: x["date"], reverse=True))
 
 
@@ -84,10 +91,8 @@ def load_brouillon(nom):
 def save_brouillon():
     data = request.json
     nom = data.get("nom", f"brouillon-{datetime.now().strftime('%Y%m%d-%H%M%S')}")
-
     path = BROUILLONS_DIR / f"{nom}.json"
     path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
-
     return jsonify({"ok": True, "nom": nom})
 
 
@@ -102,18 +107,15 @@ def delete_brouillon(nom):
 @app.route("/api/generer", methods=["POST"])
 def generer_car():
     data = request.json
-    template_nom = data.get("template")
-    
-    # Si pas de template, utiliser le premier disponible
+    template_nom  = data.get("template")
+    diagnostic_type = data.get("diagnostic_type")
+    fields_data   = data.get("fields", {})
+    nom_sortie    = data.get("nom_sortie", f"dossier-{datetime.now().strftime('%Y%m%d-%H%M%S')}")
+
     if not template_nom:
         templates = sorted([f.stem for f in TEMPLATES_DIR.glob("*.CAR")])
         if templates:
             template_nom = templates[0]
-    
-    diagnostic_type = data.get("diagnostic_type")
-    fields_data = data.get("fields", {})
-    nom_sortie = data.get("nom_sortie", f"dossier-{datetime.now().strftime('%Y%m%d-%H%M%S')}")
-
 
     if not diagnostic_type:
         return jsonify({"error": "Type de diagnostic requis"}), 400
@@ -122,19 +124,12 @@ def generer_car():
     if not template_path.exists():
         return jsonify({"error": f"Template {template_nom} non trouve"}), 404
 
-    # Filtrer les champs vides et les champs inconnus
     filtered_data = {k: v for k, v in fields_data.items() if v and k in CAR_FIELD_MAP}
-    # Diagnostic type est juste pour la saisie, pas pour le CAR
-
-    output_path = EXPORTS_DIR / f"{nom_sortie}.CAR"
+    output_path   = EXPORTS_DIR / f"{nom_sortie}.CAR"
 
     try:
         build_car_from_template(template_path, filtered_data, output_path)
-        return jsonify({
-            "ok": True,
-            "fichier": f"{nom_sortie}.CAR",
-            "chemin": str(output_path)
-        })
+        return jsonify({"ok": True, "fichier": f"{nom_sortie}.CAR"})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -147,5 +142,11 @@ def telecharger_car(nom):
     return send_file(path, as_attachment=True, download_name=nom)
 
 
+def open_browser():
+    import webbrowser
+    webbrowser.open("http://127.0.0.1:5000")
+
+
 if __name__ == "__main__":
+    threading.Timer(1.5, open_browser).start()
     app.run(debug=False, host="127.0.0.1", port=5000)
