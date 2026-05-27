@@ -25,13 +25,7 @@ jobs:
 
       - name: Compiler le .exe
         run: |
-          pyinstaller app.spec
-
-      - name: Verifier le .exe
-        run: |
-          dir dist\
-          echo "Taille du .exe:"
-          (Get-Item dist\WinDiag-CAR.exe).length / 1MB
+          pyinstaller --onefile --noconsole --name WinDiag-CAR --add-data "templates;templates" --add-data "windiag_core.py;." --hidden-import flask --hidden-import werkzeug --hidden-import jinja2 --hidden-import click --hidden-import itsdangerous app.py
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -42,18 +36,16 @@ jobs:
 
       - name: Creer une Release GitHub
         uses: softprops/action-gh-release@v2
-        if: github.ref == 'refs/heads/master'
         with:
           tag_name: build-${{ github.run_number }}
           name: "WinDiag CAR - Build ${{ github.run_number }}"
           body: |
-            Build automatique depuis le commit ${{ github.sha }}
-
             ## Utilisation
             1. Telecharger `WinDiag-CAR.exe`
-            2. Placer dans le dossier du projet (avec le dossier `templates/`)
-            3. Double-cliquer sur `WinDiag-CAR.exe`
-            4. Le navigateur s ouvre automatiquement
+            2. Creer un dossier `templates/` a cote du .exe
+            3. Y placer vos fichiers .CAR de reference
+            4. Double-cliquer sur `WinDiag-CAR.exe`
+            5. Le navigateur s ouvre automatiquement sur http://127.0.0.1:5000
           files: dist\WinDiag-CAR.exe
           draft: false
           prerelease: false
