@@ -322,6 +322,8 @@
             }
         }
     </style>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 </head>
 <body>
     <div class="container">
@@ -344,6 +346,14 @@
             <div class="main">
                 <div id="alerts"></div>
 
+                <div style="margin-bottom: 16px; padding: 12px; background: #fff4e6; border-radius: 6px; border: 1px solid #ffd8a8;">
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <div style="font-size: 13px; font-weight: 600; color: #e8590c; flex: 1;">📂 Ouvrir un fichier CAR existant</div>
+                        <button class="btn-secondary" onclick="ouvrirCAR()" style="white-space: nowrap; background: #e8590c; color: white;">Ouvrir un .CAR…</button>
+                    </div>
+                    <div id="ouvrirStatus" style="font-size: 11px; color: #666; margin-top: 5px;">Charge les champs d'un .CAR dans le formulaire</div>
+                </div>
+
                 <div class="form-grid">
                     {% for key, label in fields %}
                     <div class="form-group">
@@ -353,6 +363,16 @@
                     {% endfor %}
                 </div>
 
+                <div style="margin-top: 16px; padding: 12px; background: #eefaf0; border-radius: 6px; border: 1px solid #b7e4c7;">
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <div style="font-size: 13px; font-weight: 600; color: #2b8a3e; flex: 1;">🗺️ Référence cadastrale (depuis l'adresse du bien)</div>
+                        <button class="btn-secondary" onclick="recupererCadastre()" style="white-space: nowrap; background: #2b8a3e; color: white;">Récupérer section / parcelle</button>
+                    </div>
+                    <div id="cadastreResult" style="font-size: 13px; color: #333; margin-top: 8px;"></div>
+                    <div id="cadastreMap" style="display:none; height: 320px; margin-top: 10px; border-radius: 6px; border: 1px solid #b7e4c7;"></div>
+                    <div id="cadastreSelection" style="display:none; font-size: 13px; font-weight: 600; color: #2b8a3e; margin-top: 8px;"></div>
+                </div>
+
                 <div class="form-group" style="margin-top: 24px;">
                     <label for="savePath">📁 Dossier d'enregistrement du CAR</label>
                     <div style="display: flex; gap: 6px;">
@@ -360,6 +380,15 @@
                         <button class="btn-secondary" onclick="parcourir()" title="Parcourir" style="padding: 8px 12px; white-space: nowrap;">Parcourir…</button>
                     </div>
                     <div id="savePathInfo" style="font-size: 11px; color: #999; margin-top: 4px;">Laisser vide → téléchargement navigateur</div>
+                </div>
+
+                <div style="margin-bottom: 16px; padding: 12px; background: #f0f4ff; border-radius: 6px; border: 1px solid #c5d0f5;">
+                    <div style="font-size: 13px; font-weight: 600; color: #4a5cc7; margin-bottom: 8px;">📱 Import depuis terrain (Telegram)</div>
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <input type="text" id="importRef" placeholder="Référence ex: 2026-1234" style="flex:1; padding: 8px; border: 1px solid #c5d0f5; border-radius: 4px; font-size: 13px;">
+                        <button class="btn-secondary" onclick="importTerrain()" style="white-space: nowrap; background: #4a5cc7; color: white;">Importer notes</button>
+                    </div>
+                    <div id="importStatus" style="font-size: 11px; color: #666; margin-top: 5px;"></div>
                 </div>
 
                 <div class="actions">
@@ -493,6 +522,34 @@
                 .catch(() => showAlert("Impossible d'ouvrir le sélecteur de dossier", "error"));
         }
 
+        function ouvrirCAR() {
+            const status = document.getElementById("ouvrirStatus");
+            status.style.color = "#666";
+            status.textContent = "Ouverture du sélecteur de fichier…";
+            fetch("/api/ouvrir-car")
+                .then(r => r.json())
+                .then(data => {
+                    if (data.annule) { status.style.color = "#666"; status.textContent = "Annulé."; return; }
+                    if (data.error) {
+                        status.style.color = "#c0392b";
+                        status.textContent = "⚠️ " + data.error;
+                        return;
+                    }
+                    // Réinitialiser le formulaire puis remplir avec le contenu du fichier
+                    document.querySelectorAll("[data-field]").forEach(input => input.value = "");
+                    let filled = 0;
+                    Object.entries(data.fields).forEach(([key, value]) => {
+                        const el = document.getElementById(key);
+                        if (el && value) { el.value = value; filled++; }
+                    });
+                    const nomFichier = data.source.split("\\").pop();
+                    status.style.color = "#155724";
+                    status.textContent = `✅ ${nomFichier} chargé — ${filled} champ(s) rempli(s)`;
+                    showAlert(`Fichier CAR ouvert : ${nomFichier}`, "success");
+                })
+                .catch(() => { status.style.color = "#c0392b"; status.textContent = "Erreur réseau."; });
+        }
+
         function genererCAR() {
             const template = document.getElementById("template").value;
 
@@ -530,6 +587,165 @@
                         a.click();
                     }
                 });
+        }
+
+        function importTerrain() {
+            const ref = document.getElementById("importRef").value.trim();
+            const status = document.getElementById("importStatus");
+            if (!ref) { status.textContent = "Saisir une référence."; return; }
+            status.textContent = "Recherche en cours...";
+            fetch("/api/import-terrain", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ reference: ref })
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.error) {
+                    status.style.color = "#c0392b";
+                    status.textContent = "⚠️ " + data.error;
+                    return;
+                }
+                let filled = 0;
+                Object.entries(data.fields).forEach(([key, value]) => {
+                    const el = document.getElementById(key);
+                    if (el && value) { el.value = value; filled++; }
+                });
+                // Pré-remplir aussi la référence dans le formulaire
+                const refEl = document.getElementById("reference_dossier");
+                if (refEl && !refEl.value) refEl.value = ref;
+                status.style.color = "#155724";
+                status.textContent = `✅ ${filled} champ(s) pré-rempli(s) depuis ${data.source.split("\\").pop()}`;
+                showAlert(`Import terrain OK — ${filled} champs pré-remplis`, "success");
+            })
+            .catch(e => { status.textContent = "Erreur réseau."; });
+        }
+
+        function recupererCadastre() {
+            const result = document.getElementById("cadastreResult");
+            const rue = document.getElementById("bien_rue").value.trim();
+            const cp = document.getElementById("bien_cp").value.trim();
+            const ville = document.getElementById("bien_ville").value.trim();
+            if (!rue && !cp && !ville) {
+                result.style.color = "#c0392b";
+                result.textContent = "Renseigner d'abord l'adresse du bien (rue / CP / ville).";
+                return;
+            }
+            result.style.color = "#666";
+            result.textContent = "Recherche en cours…";
+            fetch("/api/cadastre", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ bien_rue: rue, bien_cp: cp, bien_ville: ville })
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (!data.ok) {
+                    result.style.color = "#c0392b";
+                    result.textContent = "⚠️ " + (data.error || "Aucun résultat")
+                        + (data.adresse_trouvee ? ` (adresse : ${data.adresse_trouvee})` : "");
+                    return;
+                }
+                result.style.color = "#155724";
+                result.innerHTML = "";
+                const intro = document.createElement("div");
+                intro.style.marginBottom = "6px";
+                if (data.approx) {
+                    intro.innerHTML = `<span style="color:#b8860b;">⚠️ Point posé sur la voirie : ${data.parcelles.length} parcelle(s) à proximité — vérifier et cliquer la bonne :</span>`;
+                } else {
+                    intro.textContent = data.parcelles.length > 1
+                        ? `${data.parcelles.length} parcelles trouvées — cliquer pour insérer dans la description :`
+                        : "Parcelle trouvée — cliquer pour insérer dans la description :";
+                }
+                result.appendChild(intro);
+                afficherCarteCadastre(data);
+                data.parcelles.forEach(p => {
+                    const surf = p.contenance ? ` — ${p.contenance} m²` : "";
+                    const btn = document.createElement("button");
+                    btn.className = "btn-secondary";
+                    btn.style.cssText = "margin: 3px 6px 3px 0; background: white; border: 1px solid #b7e4c7;";
+                    btn.textContent = `Section ${p.section} • Parcelle ${p.numero}${surf}`;
+                    btn.onclick = () => selectionnerParcelle(p.idu);
+                    result.appendChild(btn);
+                });
+            })
+            .catch(() => {
+                result.style.color = "#c0392b";
+                result.textContent = "Erreur réseau.";
+            });
+        }
+
+        // --- Carte Leaflet pour choisir la parcelle ---
+        let _carte = null;
+        let _couches = {};      // idu -> { layer, parcelle }
+
+        function afficherCarteCadastre(data) {
+            const mapDiv = document.getElementById("cadastreMap");
+            mapDiv.style.display = "block";
+            document.getElementById("cadastreSelection").style.display = "none";
+
+            if (!_carte) {
+                _carte = L.map(mapDiv);
+                L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+                    maxZoom: 20, attribution: "© OpenStreetMap"
+                }).addTo(_carte);
+            } else {
+                Object.values(_couches).forEach(c => _carte.removeLayer(c.layer));
+            }
+            _couches = {};
+
+            const groupe = L.featureGroup().addTo(_carte);
+            data.parcelles.forEach(p => {
+                if (!p.geometry) return;
+                const layer = L.geoJSON(p.geometry, {
+                    style: { color: "#2b8a3e", weight: 2, fillOpacity: 0.12 }
+                }).addTo(groupe);
+                layer.bindTooltip(`Section ${p.section} • Parcelle ${p.numero}`,
+                                  { sticky: true });
+                layer.on("click", () => selectionnerParcelle(p.idu));
+                _couches[p.idu] = { layer, parcelle: p };
+            });
+
+            // Marqueur de l'adresse géocodée
+            if (data.point) {
+                L.circleMarker([data.point[1], data.point[0]], {
+                    radius: 6, color: "#c0392b", fillColor: "#c0392b", fillOpacity: 0.9
+                }).addTo(groupe).bindTooltip("Adresse géocodée");
+            }
+
+            if (groupe.getLayers().length) {
+                _carte.fitBounds(groupe.getBounds().pad(0.3));
+            }
+            setTimeout(() => _carte.invalidateSize(), 100);
+        }
+
+        function selectionnerParcelle(idu) {
+            // Met en évidence la parcelle choisie et insère sa référence
+            Object.entries(_couches).forEach(([id, c]) => {
+                const actif = id === idu;
+                c.layer.setStyle({
+                    color: actif ? "#c0392b" : "#2b8a3e",
+                    weight: actif ? 4 : 2,
+                    fillOpacity: actif ? 0.3 : 0.12
+                });
+            });
+            const c = _couches[idu];
+            if (c) insererCadastre(c.parcelle);
+        }
+
+        function insererCadastre(p) {
+            const ref = `Réf. cadastrale : section ${p.section}, parcelle ${p.numero}`
+                + (p.contenance ? ` (${p.contenance} m²)` : "");
+            const descEl = document.getElementById("bien_description");
+            if (descEl) {
+                const existing = descEl.value.replace(/\s*Réf\. cadastrale :.*$/, "").trimEnd();
+                descEl.value = existing ? `${existing} — ${ref}` : ref;
+            }
+            const sel = document.getElementById("cadastreSelection");
+            sel.style.display = "block";
+            sel.textContent = `✅ Sélectionné : section ${p.section}, parcelle ${p.numero}`
+                + (p.contenance ? ` (${p.contenance} m²)` : "");
+            showAlert("Référence cadastrale insérée dans la description du bien", "success");
         }
 
         function clearForm() {

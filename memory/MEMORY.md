@@ -1,0 +1,1 @@
+- [Formulaire contact parasitis.fr (VPS)](parasitis-vps-contact-form.md) — Django sur VPS, envoi Resend+secours IONOS, boîte réelle = contact@parasitis.com (.fr bounce)

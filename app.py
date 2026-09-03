@@ -7,7 +7,8 @@ import sys
 import threading
 import webbrowser
 from datetime import datetime
-from windiag_core import build_car_from_template, CAR_FIELD_MAP
+from windiag_core import build_car_from_template, extract_car_summary, CAR_FIELD_MAP
+from cadastre import reference_cadastrale
 
 # Support PyInstaller
 if getattr(sys, 'frozen', False):
@@ -40,6 +41,9 @@ DIAGNOSTIC_TYPES = {
 FIELD_DEFINITIONS = [
     ("reference_dossier",  "Reference dossier"),
     ("donneur_ordre",      "Donneur d'ordre"),
+    ("facturation_adresse","Adresse donneur d'ordre"),
+    ("facturation_cp",     "CP donneur d'ordre"),
+    ("facturation_ville",  "Ville donneur d'ordre"),
     ("ville_dossier",      "Ville du dossier"),
     ("surface",            "Surface"),
     ("date_commande",      "Date de commande"),
@@ -190,6 +194,83 @@ def parcourir_dossier():
         return jsonify({"chemin": None})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/ouvrir-car", methods=["GET"])
+def ouvrir_car():
+    """Ouvre un sélecteur de fichier .CAR et retourne les champs lus."""
+    try:
+        script = (
+            "Add-Type -AssemblyName System.Windows.Forms; "
+            "$owner = New-Object System.Windows.Forms.Form; "
+            "$owner.TopMost = $true; "
+            "$owner.Opacity = 0; "
+            "$owner.ShowInTaskbar = $false; "
+            "$owner.StartPosition = 'CenterScreen'; "
+            "$owner.Show(); [void]$owner.Focus(); "
+            "$d = New-Object System.Windows.Forms.OpenFileDialog; "
+            "$d.Title = 'Ouvrir un fichier CAR'; "
+            "$d.Filter = 'Fichiers CAR (*.CAR)|*.CAR|Tous les fichiers (*.*)|*.*'; "
+            "$d.CheckFileExists = $true; "
+            "$d.Multiselect = $false; "
+            "if ($d.ShowDialog($owner) -eq 'OK') { Write-Output $d.FileName } "
+            "$owner.Dispose()"
+        )
+        result = subprocess.run(
+            ["powershell", "-NoProfile", "-Command", script],
+            capture_output=True, text=True, timeout=120
+        )
+        chemin = result.stdout.strip()
+        if not chemin:
+            return jsonify({"annule": True})
+
+        car_path = Path(chemin)
+        if not car_path.exists():
+            return jsonify({"error": "Fichier introuvable"}), 404
+
+        summary = extract_car_summary(car_path)
+        # Ne garder que les champs présents dans le formulaire et non vides
+        fields = {k: v for k, v in summary.items() if v}
+        return jsonify({"ok": True, "fields": fields, "source": str(car_path)})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/import-terrain", methods=["POST"])
+def import_terrain():
+    """Charge le fichier {ref}_notes.json depuis le dossier client Dropbox."""
+    data = request.json
+    reference = (data.get("reference") or "").strip()
+    if not reference:
+        return jsonify({"error": "Référence manquante"}), 400
+
+    rapports_dir = Path(r"C:\Users\Assistante\Dropbox\Parasitis\RAPPORTS 2010")
+    if not rapports_dir.exists():
+        return jsonify({"error": "Dossier RAPPORTS introuvable"}), 404
+
+    # Chercher {ref}_notes.json dans tous les sous-dossiers
+    import re as _re
+    pattern = f"{reference}_notes.json"
+    found = list(rapports_dir.rglob(pattern))
+    if not found:
+        return jsonify({"error": f"Aucun fichier notes trouvé pour {reference}"}), 404
+
+    notes = json.loads(found[0].read_text(encoding="utf-8"))
+    # Supprimer les clés internes (_source_image, _extracted_at)
+    clean = {k: v for k, v in notes.items() if not k.startswith("_")}
+    return jsonify({"ok": True, "fields": clean, "source": str(found[0])})
+
+
+@app.route("/api/cadastre", methods=["POST"])
+def api_cadastre():
+    """Récupère section + parcelle à partir de l'adresse du bien."""
+    data = request.json or {}
+    res = reference_cadastrale(
+        (data.get("bien_rue") or "").strip(),
+        (data.get("bien_cp") or "").strip(),
+        (data.get("bien_ville") or "").strip(),
+    )
+    return jsonify(res)
 
 
 @app.route("/api/telecharger/<nom>", methods=["GET"])
